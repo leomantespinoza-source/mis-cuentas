@@ -8,6 +8,9 @@ import {
 import { openPayFixed } from './plan.js';
 import { openPayCard, openPayLoan } from './debts.js';
 import { openTxDetail } from './movs.js';
+import {
+  backupDue, daysSinceBackup, shareBackup, snoozeBackup, canShareBackup,
+} from '../backup.js';
 
 export default function home(el) {
   const s = getState();
@@ -26,6 +29,7 @@ export default function home(el) {
 
     ${setupCard(s)}
     ${hasIncome ? hero(m) : heroEmpty()}
+    ${backupNotice()}
     ${paceNotice(m)}
     ${upcomingCard(s)}
 
@@ -51,6 +55,13 @@ export default function home(el) {
   }));
   el.querySelectorAll('[data-tx]').forEach((row) => row.addEventListener('click', () => openTxDetail(row.dataset.tx)));
   el.querySelector('[data-settle]')?.addEventListener('click', openSettle);
+  el.querySelector('[data-backup-now]')?.addEventListener('click', async () => {
+    if (await shareBackup()) toast('Respaldo listo ✓ Guárdalo fuera del celular');
+  });
+  el.querySelector('[data-backup-later]')?.addEventListener('click', () => {
+    snoozeBackup(1);
+    toast('Te lo recuerdo mañana');
+  });
   el.querySelector('[data-dismiss-setup]')?.addEventListener('click', () => updateSettings({ setupDismissed: true }));
 }
 
@@ -129,6 +140,24 @@ function hero(m) {
         </div>
         <div class="hero-meta num"><span>Gastado ${money(m.variableSpent)}</span><span>de ${money(m.variableBudget)}</span></div>` : ''}
     </section>`;
+}
+
+function backupNotice() {
+  if (!backupDue()) return '';
+  const days = daysSinceBackup();
+  const when = days == null
+    ? 'Aún no has hecho ningún respaldo.'
+    : `Tu último respaldo fue hace ${days} días.`;
+  const how = canShareBackup()
+    ? 'Envíatelo a Drive, a tu correo o a tu propio WhatsApp.'
+    : 'Se descargará un archivo: guárdalo en Drive o en tu correo.';
+  return `
+    <div class="notice"><span>💾</span><div style="flex:1"><b>Toca respaldar tus datos</b>
+      ${when} Si formateas o pierdes el celular, el respaldo es lo único que te permite recuperarlos. ${how}
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn sm" data-backup-later>Mañana</button>
+        <button class="btn sm primary" data-backup-now>Respaldar ahora</button>
+      </div></div></div>`;
 }
 
 function paceNotice(m) {

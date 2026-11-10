@@ -1,13 +1,23 @@
 // Ajustes: datos personales, compartidos, categorías y respaldo.
 import {
-  getState, updateSettings, upsert, remove, exportJSON, importJSON, resetAll,
+  getState, updateSettings, upsert, remove, importJSON, resetAll,
 } from '../store.js';
+import {
+  download, downloadBackup, shareBackup, canShareBackup, daysSinceBackup,
+} from '../backup.js';
 import { esc, today } from '../format.js';
 import { ICONS, toast, formValues, catInfo, methodLabel } from '../ui.js';
 import { myShare } from '../calc.js';
 
 export default function settings(el) {
   const s = getState();
+  const days = daysSinceBackup();
+  let lastText;
+  let lastCls = '';
+  if (days == null) lastText = '<b>Aún no has hecho ningún respaldo.</b>';
+  else if (days === 0) { lastText = '<b>Último respaldo: hoy.</b> Todo en orden.'; lastCls = 'ok'; }
+  else if (days < 7) { lastText = `<b>Último respaldo: hace ${days} ${days === 1 ? 'día' : 'días'}.</b>`; lastCls = 'ok'; }
+  else lastText = `<b>Último respaldo: hace ${days} días.</b> Toca hacer uno nuevo.`;
 
   el.innerHTML = `
     <header class="topbar">
@@ -51,7 +61,9 @@ export default function settings(el) {
       <h2 class="card-title">Respaldo de tus datos</h2>
       <p class="muted small" style="margin-top:0">Tus datos se guardan <b>solo en este celular</b>, no en internet.
         Si borras los datos del navegador o cambias de celular, se pierden. Descarga un respaldo cada cierto tiempo y guárdalo en un lugar personal.</p>
+      <div class="notice ${lastCls}" style="margin-bottom:12px"><span>💾</span><div>${lastText}</div></div>
       <div style="display:grid;gap:10px">
+        ${canShareBackup() ? '<button class="btn primary block" data-share>📤 Enviar respaldo (Drive, correo, WhatsApp)</button>' : ''}
         <button class="btn block" data-export>⬇️ Descargar respaldo</button>
         <label class="btn block" style="cursor:pointer">⬆️ Restaurar respaldo
           <input type="file" accept="application/json,.json" data-import class="hidden"></label>
@@ -94,8 +106,11 @@ export default function settings(el) {
   }));
 
   el.querySelector('[data-export]').addEventListener('click', () => {
-    download(`mis-cuentas-respaldo-${today()}.json`, exportJSON(), 'application/json');
-    toast('Respaldo descargado');
+    downloadBackup();
+    toast('Respaldo descargado. Guárdalo fuera del celular');
+  });
+  el.querySelector('[data-share]')?.addEventListener('click', async () => {
+    if (await shareBackup()) toast('Respaldo listo ✓');
   });
 
   el.querySelector('[data-import]').addEventListener('change', async (e) => {
@@ -127,18 +142,6 @@ export default function settings(el) {
       ? '✓ El navegador mantendrá tus datos guardados.'
       : 'El navegador podría borrar los datos si falta espacio. Instalar la app ayuda a evitarlo.';
   });
-}
-
-function download(name, content, type) {
-  const blob = new Blob([type === 'text/csv' ? '﻿' + content : content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const TYPE_LABEL = {

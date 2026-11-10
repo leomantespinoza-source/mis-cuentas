@@ -34,6 +34,8 @@ function emptyState() {
       savingsMonthly: 0,
       lastMethod: 'cash',
       setupDismissed: false,
+      lastBackupAt: 0,
+      backupSnoozeUntil: 0,
     },
     categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
     incomes: [],   // {id, name, amount, day}
