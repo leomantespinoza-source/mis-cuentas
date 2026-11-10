@@ -66,7 +66,7 @@ export default function settings(el) {
         ${canShareBackup() ? '<button class="btn primary block" data-share>📤 Enviar respaldo (Drive, correo, WhatsApp)</button>' : ''}
         <button class="btn block" data-export>⬇️ Descargar respaldo</button>
         <label class="btn block" style="cursor:pointer">⬆️ Restaurar respaldo
-          <input type="file" accept="application/json,.json" data-import class="hidden"></label>
+          <input type="file" data-import class="hidden"></label>
         <button class="btn block" data-csv>📄 Exportar movimientos (Excel/CSV)</button>
       </div>
       <p class="small muted" id="persist-status" style="margin-bottom:0"></p>
