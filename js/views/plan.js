@@ -7,8 +7,31 @@ import {
   money, monthName, esc, capitalize, parseAmount, today, daysBetween,
 } from '../format.js';
 import {
-  openSheet, toast, formValues, catInfo, partnerName,
+  openSheet, toast, formValues, catInfo, shareFieldsHTML, bindShareFields,
 } from '../ui.js';
+import {
+  incomeOccurrence, incomeIcon, incomeMonths, countsInBudget,
+} from '../schedule.js';
+import { openIncomeForm, openIncomeOverride, fmtPayDate } from './incomes.js';
+
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+
+function incomeRow(i, mk) {
+  const occ = incomeOccurrence(i, mk);
+  const months = incomeMonths(i);
+  const when = months.length === 12 ? 'Todos los meses' : months.map((x) => MONTH_SHORT[x - 1]).join(', ');
+  const chip = occ
+    ? `<button type="button" class="date-chip ${occ.tentative ? 'tentative' : ''} ${occ.manual ? 'manual' : ''}" data-occ="${mk}">
+        ${fmtPayDate(occ.date)}${occ.tentative ? ' *' : ''}</button>`
+    : '<span class="small muted">No llega este mes</span>';
+  return `
+    <li class="row tappable" data-income="${esc(i.id)}">
+      <div class="row-icon">${incomeIcon(i)}</div>
+      <div class="row-main"><div class="row-title">${esc(i.name)}</div>
+        <div class="row-sub">${esc(when)}${countsInBudget(i) ? '' : ' · No suma al presupuesto'}</div></div>
+      <div class="row-end"><div class="row-amount in">${money(occ ? occ.amount : i.amount)}</div>${chip}</div>
+    </li>`;
+}
 
 export default function plan(el, params) {
   const s = getState();
@@ -38,18 +61,16 @@ export default function plan(el, params) {
         Esto explica la sensación de estar ahogado: el dinero se acaba antes de empezar el mes. Revisa qué fijos puedes bajar o cancelar,
         y en Deudas mira qué préstamo o tarjeta termina antes.</div></div>` : ''}
 
-    <div class="section-label">Ingresos fijos del mes</div>
+    <div class="section-label">Tus ingresos</div>
     <section class="card">
-      ${s.incomes.length ? `<ul class="rows">${s.incomes.map((i) => `
-        <li class="row tappable" data-income="${esc(i.id)}">
-          <div class="row-icon">💰</div>
-          <div class="row-main"><div class="row-title">${esc(i.name)}</div><div class="row-sub">Llega el día ${i.day}</div></div>
-          <div class="row-end"><div class="row-amount in">${money(i.amount)}</div></div>
-        </li>`).join('')}</ul>` : '<div class="empty">Agrega tu sueldo y cualquier otro ingreso que recibas cada mes.</div>'}
+      ${s.incomes.length ? `<ul class="rows">${s.incomes.map((i) => incomeRow(i, m.mk)).join('')}</ul>
+        <div class="muted small" style="margin-top:8px">Toca la fecha para cambiarla solo este mes; toca el nombre para editar el ingreso.</div>`
+    : '<div class="empty">Agrega tu quincena, tu pago de fin de mes y extras como gratificación o CTS.</div>'}
       <div class="btn-row" style="margin-top:10px">
-        <button class="btn sm" data-add-income>+ Ingreso fijo</button>
+        <button class="btn sm" data-add-income>+ Ingreso</button>
         <a class="btn sm" href="#/nuevo?type=income">+ Ingreso extra</a>
       </div>
+      <a class="btn sm block" href="#/calendario" style="margin-top:10px">📅 Ver calendario de pagos</a>
     </section>
 
     <div class="section-label">Gastos fijos</div>
@@ -91,7 +112,11 @@ export default function plan(el, params) {
 
   el.querySelector('[data-add-income]').addEventListener('click', () => openIncomeForm());
   el.querySelector('[data-add-fixed]').addEventListener('click', () => openFixedForm());
-  el.querySelectorAll('[data-income]').forEach((r) => r.addEventListener('click', () => openIncomeForm(r.dataset.income)));
+  el.querySelectorAll('[data-income]').forEach((r) => r.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-occ]');
+    if (chip) openIncomeOverride(r.dataset.income, chip.dataset.occ);
+    else openIncomeForm(r.dataset.income);
+  }));
   el.querySelectorAll('[data-fixed]').forEach((r) => r.addEventListener('click', () => openFixedActions(r.dataset.fixed)));
   el.querySelector('#savings-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -100,46 +125,6 @@ export default function plan(el, params) {
   });
 
   if (params.s === 'ahorro') setTimeout(() => el.querySelector('#ahorro').scrollIntoView({ behavior: 'smooth' }), 50);
-}
-
-// ---------- Ingresos ----------
-
-function openIncomeForm(id) {
-  const i = id ? findById('incomes', id) : null;
-  openSheet({
-    title: i ? 'Editar ingreso' : 'Nuevo ingreso fijo',
-    html: `
-      <form>
-        <label class="field"><span>Nombre</span>
-          <input class="input" name="name" required maxlength="40" placeholder="Ej: Sueldo" value="${esc(i?.name || '')}"></label>
-        <div class="field-row">
-          <label class="field"><span>Monto neto</span>
-            <input class="input num" name="amount" inputmode="decimal" required value="${i?.amount ?? ''}">
-            <small>Lo que realmente te llega</small></label>
-          <label class="field"><span>Día que llega</span>
-            <input class="input" name="day" type="number" min="1" max="31" required value="${i?.day ?? 30}"></label>
-        </div>
-        <div class="btn-row">
-          ${i ? '<button type="button" class="btn danger" data-del>Eliminar</button>' : ''}
-          <button class="btn primary">Guardar</button>
-        </div>
-      </form>`,
-    onMount(sheet, close) {
-      sheet.querySelector('[data-del]')?.addEventListener('click', () => {
-        if (!confirm('¿Eliminar este ingreso?')) return;
-        remove('incomes', i.id); close();
-      });
-      sheet.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const v = formValues(e.target);
-        const amount = parseAmount(v.amount);
-        if (amount <= 0) return toast('Ingresa un monto válido');
-        upsert('incomes', { id: i?.id, name: v.name.trim(), amount, day: clampDay(v.day) });
-        close();
-        toast('Ingreso guardado');
-      });
-    },
-  });
 }
 
 // ---------- Gastos fijos ----------
@@ -171,6 +156,8 @@ export function openPayFixed(id) {
   const s = getState();
   const f = findById('fixed', id);
   if (!f) return;
+  // Parte del valor por defecto del gasto fijo, pero se puede cambiar solo para este mes.
+  const st = { shared: !!f.shared, myPct: f.myPct ?? s.settings.defaultSharedPct ?? 50, paidBy: 'me' };
   openSheet({
     title: `Pagar: ${f.name}`,
     html: `
@@ -178,11 +165,11 @@ export function openPayFixed(id) {
         <label class="field"><span>Monto pagado</span>
           <input class="input num" name="amount" inputmode="decimal" value="${f.amount}" required data-noautofocus="1">
           <small>Si este mes vino distinto (ej. la luz), corrígelo aquí.</small></label>
-        <label class="field"><span>¿Con qué pagaste?</span>
+        ${shareFieldsHTML(st, { title: 'Este mes, ¿de quién es?' })}
+        <label class="field" data-method-field><span>¿Con qué pagaste?</span>
           <select class="input" name="method">
             <option value="cash">💵 Efectivo / débito</option>
             ${s.cards.map((c) => `<option value="${esc(c.id)}">💳 Tarjeta ${esc(c.name)}</option>`).join('')}
-            ${f.shared ? `<option value="partner">🤝 Lo pagó ${esc(partnerName())}</option>` : ''}
           </select></label>
         <label class="field"><span>Fecha</span>
           <input class="input" type="date" name="date" value="${today()}" max="${today()}" required></label>
@@ -192,17 +179,22 @@ export function openPayFixed(id) {
         </div>
       </form>`,
     onMount(sheet, close) {
+      const form = sheet.querySelector('form');
+      const methodField = sheet.querySelector('[data-method-field]');
+      const syncMethod = () => methodField.classList.toggle('hidden', st.shared && st.paidBy === 'partner');
+      const share = bindShareFields(sheet, st, { getAmount: () => parseAmount(form.amount.value), onChange: syncMethod });
+      form.amount.addEventListener('input', share.refresh);
+      syncMethod();
       sheet.querySelector('[data-edit]').addEventListener('click', () => openFixedForm(id));
-      sheet.querySelector('form').addEventListener('submit', (e) => {
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const v = formValues(e.target);
+        const v = formValues(form);
         const amount = parseAmount(v.amount);
         if (amount <= 0) return toast('Ingresa un monto válido');
-        const byPartner = v.method === 'partner';
         addTx({
           type: 'fixed', refId: f.id, amount, categoryId: f.categoryId, date: v.date,
-          method: byPartner ? 'cash' : v.method, shared: !!f.shared, myPct: f.myPct ?? 50,
-          paidBy: byPartner ? 'partner' : 'me', note: f.name,
+          method: v.method, shared: st.shared, myPct: st.myPct,
+          paidBy: st.shared ? st.paidBy : 'me', note: f.name,
         });
         close();
         toast(`${f.name}: pagado ✓`);
@@ -214,7 +206,7 @@ export function openPayFixed(id) {
 function openFixedForm(id) {
   const s = getState();
   const f = id ? findById('fixed', id) : null;
-  const shared = !!f?.shared;
+  const st = { shared: !!f?.shared, myPct: f?.myPct ?? s.settings.defaultSharedPct ?? 50, paidBy: 'me' };
   openSheet({
     title: f ? 'Editar gasto fijo' : 'Nuevo gasto fijo',
     html: `
@@ -231,11 +223,8 @@ function openFixedForm(id) {
           <select class="input" name="categoryId">
             ${s.categories.map((c) => `<option value="${esc(c.id)}" ${c.id === (f?.categoryId || 'vivienda') ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}
           </select></label>
-        <label class="switch"><span><b>Compartido</b> con ${esc(partnerName())}</span>
-          <input type="checkbox" name="shared" ${shared ? 'checked' : ''}></label>
-        <label class="field ${shared ? '' : 'hidden'}" id="pct-field"><span>Mi parte (%)</span>
-          <input class="input" type="number" name="myPct" min="0" max="100" step="5" value="${f?.myPct ?? s.settings.defaultSharedPct ?? 50}">
-          <small>Solo tu parte se descuenta de tu plan.</small></label>
+        ${shareFieldsHTML(st, { withPaidBy: false, title: 'Normalmente, ¿de quién es?' })}
+        <small class="muted" style="display:block;margin:-4px 0 12px">Es lo que vendrá marcado cada mes; al pagarlo puedes cambiarlo solo para ese mes.</small>
         <div class="btn-row">
           ${f ? '<button type="button" class="btn danger" data-del>Eliminar</button>' : ''}
           <button class="btn primary">Guardar</button>
@@ -243,7 +232,8 @@ function openFixedForm(id) {
       </form>`,
     onMount(sheet, close) {
       const form = sheet.querySelector('form');
-      form.shared.addEventListener('change', () => sheet.querySelector('#pct-field').classList.toggle('hidden', !form.shared.checked));
+      const share = bindShareFields(sheet, st, { getAmount: () => parseAmount(form.amount.value) });
+      form.amount.addEventListener('input', share.refresh);
       sheet.querySelector('[data-del]')?.addEventListener('click', () => {
         if (!confirm('¿Eliminar este gasto fijo? Los pagos ya registrados se conservan.')) return;
         remove('fixed', f.id); close();
@@ -255,7 +245,7 @@ function openFixedForm(id) {
         if (amount <= 0) return toast('Ingresa un monto válido');
         upsert('fixed', {
           id: f?.id, name: v.name.trim(), amount, day: clampDay(v.day), categoryId: v.categoryId,
-          shared: form.shared.checked, myPct: Math.min(100, Math.max(0, Number(v.myPct) || 50)),
+          shared: st.shared, myPct: st.myPct,
         });
         close();
         toast('Gasto fijo guardado');

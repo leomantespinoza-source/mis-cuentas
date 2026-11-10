@@ -2,7 +2,9 @@
 import { getState, addTx, removeTx } from '../store.js';
 import { monthSummary } from '../calc.js';
 import { esc, money, today, parseAmount, daysBetween } from '../format.js';
-import { toast, bindSeg, ICONS, partnerName } from '../ui.js';
+import {
+  toast, bindSeg, ICONS, shareFieldsHTML, bindShareFields,
+} from '../ui.js';
 
 const VISIBLE_CATS = 8;
 
@@ -67,21 +69,8 @@ export default function add(el, params) {
         </div>
         ${s.cards.length ? '' : '<div class="small muted" style="margin-top:4px">¿Pagas con tarjeta de crédito? Agrégala en <a href="#/deudas">Deudas</a>.</div>'}
 
-        <div class="card" style="margin-top:16px;padding:6px 16px">
-          <label class="switch"><span><b>Gasto compartido</b><br><span class="small muted">Con ${esc(partnerName())}</span></span>
-            <input type="checkbox" name="shared" ${f.shared ? 'checked' : ''}></label>
-          <div id="shared-opts" class="${f.shared ? '' : 'hidden'}" style="padding-bottom:12px">
-            <div class="field" style="margin-bottom:10px"><span>¿Quién pagó?</span>
-              <div class="seg" data-name="paidBy">
-                <button type="button" data-value="me" aria-pressed="${f.paidBy === 'me'}">Yo</button>
-                <button type="button" data-value="partner" aria-pressed="${f.paidBy === 'partner'}">${esc(partnerName())}</button>
-              </div>
-            </div>
-            <label class="field" style="margin-bottom:0"><span>Mi parte: <span id="pct-label">${f.myPct}%</span></span>
-              <input type="range" name="myPct" min="0" max="100" step="5" value="${f.myPct}" style="width:100%">
-              <small id="share-hint"></small>
-            </label>
-          </div>
+        <div class="card" style="margin-top:16px;padding:14px 16px 8px">
+          ${shareFieldsHTML(f)}
         </div>
       </div>
 
@@ -102,7 +91,6 @@ export default function add(el, params) {
   const expenseBlock = el.querySelector('[data-expense]');
   const catsEl = el.querySelector('#cats');
   const moreBtn = el.querySelector('#more-cats');
-  const sharedOpts = el.querySelector('#shared-opts');
   const methodsEl = el.querySelector('#methods');
 
   function renderCats() {
@@ -121,17 +109,6 @@ export default function add(el, params) {
     methodsEl.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.method === f.method)));
   }
 
-  function renderShareHint() {
-    const amt = parseAmount(amountInput.value);
-    el.querySelector('#pct-label').textContent = `${f.myPct}%`;
-    const mine = (amt * f.myPct) / 100;
-    const hint = el.querySelector('#share-hint');
-    if (!amt) { hint.textContent = 'Solo tu parte cuenta en tu presupuesto.'; return; }
-    hint.textContent = f.paidBy === 'me'
-      ? `Tu parte: ${money(mine)}. ${partnerName()} te debe ${money(amt - mine)}.`
-      : `Tu parte: ${money(mine)}. Le debes eso a ${partnerName()}.`;
-  }
-
   function renderType() {
     expenseBlock.classList.toggle('hidden', f.type !== 'expense');
     form.note.placeholder = f.type === 'income' ? 'Ej: trabajo extra, venta, bono' : 'Ej: almuerzo con amigos';
@@ -139,14 +116,16 @@ export default function add(el, params) {
 
   renderCats();
   renderMethods();
-  renderShareHint();
   renderType();
   if (!editing) setTimeout(() => amountInput.focus(), 50);
 
   bindSeg(el, (name, value) => {
     f[name] = value;
     if (name === 'type') renderType();
-    if (name === 'paidBy') { renderMethods(); renderShareHint(); }
+  });
+  const share = bindShareFields(el, f, {
+    getAmount: () => parseAmount(amountInput.value),
+    onChange: renderMethods,
   });
 
   catsEl.addEventListener('click', (e) => {
@@ -162,14 +141,7 @@ export default function add(el, params) {
     f.method = b.dataset.method;
     renderMethods();
   });
-  form.shared.addEventListener('change', () => {
-    f.shared = form.shared.checked;
-    sharedOpts.classList.toggle('hidden', !f.shared);
-    renderMethods();
-    renderShareHint();
-  });
-  form.myPct.addEventListener('input', () => { f.myPct = Number(form.myPct.value); renderShareHint(); });
-  amountInput.addEventListener('input', renderShareHint);
+  amountInput.addEventListener('input', share.refresh);
 
   el.querySelector('#del')?.addEventListener('click', () => {
     if (!confirm('¿Eliminar este movimiento?')) return;

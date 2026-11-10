@@ -1,7 +1,12 @@
 // Pantalla de inicio: "Hoy puedes gastar", próximos pagos y en qué se va el dinero.
 import { getState, addTx, updateSettings } from '../store.js';
-import { monthSummary, upcomingPayments, sharedBalance } from '../calc.js';
-import { money, monthName, esc, capitalize, parseAmount, today } from '../format.js';
+import {
+  monthSummary, upcomingPayments, sharedBalance, nextIncome,
+} from '../calc.js';
+import {
+  money, monthName, esc, capitalize, parseAmount, today, shortDate,
+} from '../format.js';
+import { incomeIcon, weekdayShort } from '../schedule.js';
 import {
   ICONS, txRow, categoryBars, dueLabel, openSheet, toast, partnerName,
 } from '../ui.js';
@@ -31,6 +36,7 @@ export default function home(el) {
     ${hasIncome ? hero(m) : heroEmpty()}
     ${backupNotice()}
     ${paceNotice(m)}
+    ${nextIncomeCard(s)}
     ${upcomingCard(s)}
 
     <section class="card">
@@ -173,6 +179,24 @@ function paceNotice(m) {
       Llevas ${money(m.expectedByNow - m.variableSpent)} menos de lo esperado. Si sigues así, lo que sobre puede ir a tu deuda o tu ahorro.</div></div>`;
   }
   return '';
+}
+
+function nextIncomeCard(s) {
+  const n = nextIncome(s);
+  if (!n) return '';
+  let when;
+  if (n.days === 0) when = 'hoy';
+  else if (n.days === 1) when = 'mañana';
+  else when = `en ${n.days} días`;
+  return `
+    <a class="card next-income" href="#/calendario">
+      <div class="row-icon">${incomeIcon(n.income)}</div>
+      <div class="row-main">
+        <div class="small muted">Próximo ingreso · ${when}</div>
+        <div class="row-title">${esc(n.income.name)} · ${weekdayShort(n.date)} ${esc(shortDate(n.date))}${n.tentative ? ' *' : ''}</div>
+      </div>
+      <div class="row-amount in">+${money(n.amount)}</div>
+    </a>`;
 }
 
 function upcomingCard(s) {

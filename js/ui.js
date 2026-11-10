@@ -181,8 +181,96 @@ export function formValues(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
 
+// ---------- Selector "Solo mío / Compartido" ----------
+// st = { shared, myPct, paidBy }; withPaidBy muestra "¿Quién pagó?".
+
+const PCT_PRESETS = [30, 40, 50, 60, 70];
+
+export function shareFieldsHTML(st, { withPaidBy = true, title = '¿De quién es este gasto?' } = {}) {
+  const p = esc(partnerName());
+  const custom = !PCT_PRESETS.includes(Number(st.myPct));
+  return `
+    <div data-share-box>
+      <div class="field" style="margin-bottom:10px"><span>${title}</span>
+        <div class="seg" data-own data-name="owner">
+          <button type="button" data-value="mine" aria-pressed="${!st.shared}">Solo mío</button>
+          <button type="button" data-value="shared" aria-pressed="${!!st.shared}">Compartido con ${p}</button>
+        </div>
+      </div>
+      <div data-share-opts class="${st.shared ? '' : 'hidden'}">
+        ${withPaidBy ? `
+          <div class="field" style="margin-bottom:10px"><span>¿Quién pagó?</span>
+            <div class="seg" data-own data-name="paidBy">
+              <button type="button" data-value="me" aria-pressed="${st.paidBy !== 'partner'}">Yo</button>
+              <button type="button" data-value="partner" aria-pressed="${st.paidBy === 'partner'}">${p}</button>
+            </div>
+          </div>` : ''}
+        <div class="field" style="margin-bottom:6px"><span>Mi parte</span>
+          <div class="chips" data-pcts style="flex-wrap:wrap">
+            ${PCT_PRESETS.map((v) => `<button type="button" class="chip" data-pct="${v}" aria-pressed="${!custom && Number(st.myPct) === v}">${v}%</button>`).join('')}
+            <button type="button" class="chip" data-pct="custom" aria-pressed="${custom}">Otro</button>
+          </div>
+          <input class="input num ${custom ? '' : 'hidden'}" type="number" min="0" max="100" step="1" data-pct-input
+            value="${esc(st.myPct)}" style="margin-top:8px" aria-label="Mi parte en porcentaje" data-noautofocus="1">
+          <small data-share-hint></small>
+        </div>
+      </div>
+    </div>`;
+}
+
+// getAmount() devuelve el monto actual para mostrar cuánto le toca a cada uno.
+export function bindShareFields(root, st, { getAmount = () => 0, onChange } = {}) {
+  const box = root.querySelector('[data-share-box]');
+  const opts = box.querySelector('[data-share-opts]');
+  const pctInput = box.querySelector('[data-pct-input]');
+  const hint = box.querySelector('[data-share-hint]');
+  const p = partnerName();
+
+  const renderHint = () => {
+    const amt = Number(getAmount()) || 0;
+    const mine = (amt * st.myPct) / 100;
+    if (!amt) hint.textContent = 'Solo tu parte cuenta en tu presupuesto.';
+    else if (st.paidBy === 'partner') hint.textContent = `Tu parte: ${money(mine)}. Se la debes a ${p}.`;
+    else hint.textContent = `Tu parte: ${money(mine)}. ${p} te debe ${money(amt - mine)}.`;
+  };
+  const changed = () => { renderHint(); onChange?.(st); };
+
+  box.querySelectorAll('.seg[data-own]').forEach((seg) => seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    if (seg.dataset.name === 'owner') {
+      st.shared = b.dataset.value === 'shared';
+      opts.classList.toggle('hidden', !st.shared);
+    } else {
+      st.paidBy = b.dataset.value;
+    }
+    changed();
+  }));
+  box.querySelector('[data-pcts]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pct]');
+    if (!b) return;
+    box.querySelectorAll('[data-pct]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    if (b.dataset.pct === 'custom') {
+      pctInput.classList.remove('hidden');
+      pctInput.focus();
+    } else {
+      pctInput.classList.add('hidden');
+      st.myPct = Number(b.dataset.pct);
+      pctInput.value = st.myPct;
+    }
+    changed();
+  });
+  pctInput.addEventListener('input', () => {
+    st.myPct = Math.min(100, Math.max(0, Number(pctInput.value) || 0));
+    changed();
+  });
+  renderHint();
+  return { refresh: renderHint };
+}
+
 export function bindSeg(container, onChange) {
-  container.querySelectorAll('.seg').forEach((seg) => {
+  container.querySelectorAll('.seg:not([data-own])').forEach((seg) => {
     seg.addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;

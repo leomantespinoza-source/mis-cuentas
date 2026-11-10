@@ -300,6 +300,55 @@ a { color: inherit; }
 .day-group { margin-bottom: 14px; }
 .day-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-weight: 650; padding: 0 4px 6px; }
 
+.next-income { display: flex; align-items: center; gap: 12px; text-decoration: none; padding: 12px 16px; }
+.next-income .row-icon { background: var(--brand-soft); }
+
+/* ---------- Fechas de pago ---------- */
+.date-chip {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+  min-height: 30px; padding: 0 10px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+  font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.date-chip.moved { background: var(--brand-soft); border-color: transparent; }
+.date-chip.manual { border-color: var(--brand); }
+.date-chip.tentative { background: var(--warn-soft); border-style: dashed; border-color: var(--warn); }
+.date-chip.big { flex-direction: column; align-items: flex-start; gap: 0; padding: 6px 12px; border-radius: 12px; margin: 0; }
+.date-chip .chip-name { font-size: 11px; font-weight: 600; color: var(--muted); }
+.date-chip .chip-date { font-size: 15px; }
+
+.month-picks { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.month-picks .chip { padding: 0; min-height: 36px; font-size: 13px; }
+
+/* ---------- Calendario ---------- */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-head span { text-align: center; font-size: 12px; font-weight: 650; color: var(--muted); padding-bottom: 4px; }
+.cal-cell {
+  aspect-ratio: 1 / 1.05; border: 0; border-radius: 10px; background: transparent; padding: 4px 0 0;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: var(--ink);
+}
+.cal-cell.empty { cursor: default; }
+.cal-cell b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cal-cell.weekend { background: var(--surface-2); color: var(--muted); }
+.cal-cell.holiday { background: var(--danger-soft); }
+.cal-cell.holiday b { color: var(--danger); }
+.cal-cell.today b { background: var(--ink); color: var(--bg); border-radius: 99px; min-width: 26px; line-height: 26px; }
+.cal-cell.has-income { box-shadow: inset 0 0 0 2px var(--ok); }
+.cal-cell .dots { display: flex; gap: 3px; min-height: 6px; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.dot.k-income { background: var(--ok); }
+.dot.k-fixed, .dot.k-loan, .dot.k-card { background: var(--warn); }
+.sq { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.sq.weekend { background: var(--surface-2); border: 1px solid var(--line); }
+.sq.holiday { background: var(--danger-soft); border: 1px solid var(--danger); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
+
+.year-month { padding: 12px 14px; margin-bottom: 10px; }
+.year-month.now { box-shadow: inset 0 0 0 2px var(--brand), var(--shadow); }
+.year-month-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.year-month-head a { text-decoration: none; }
+.year-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* ---------- Tabbar ---------- */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;

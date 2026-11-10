@@ -11,7 +11,11 @@ celular** (no hay servidor ni cuentas). No usa librerías externas ni necesita c
 - **Registrar (+):** gasto o ingreso extra en pocos segundos: monto, categoría, medio de pago y,
   si es compartido, quién pagó y tu parte.
 - **Movimientos:** lista por día o por categoría, mes a mes. Toca un movimiento para editarlo.
-- **Mi plan:** ingresos fijos, gastos fijos (marcar como pagados) y meta de ahorro.
+- **Mi plan:** ingresos (quincena, fin de mes, gratificación, CTS, aguinaldo), gastos fijos
+  (marcar como pagados y elegir si ese mes es compartido) y meta de ahorro.
+- **Calendario de pagos:** vista del mes y del año con fines de semana y feriados del Perú. Las fechas
+  de cobro se mueven solas al día hábil más cercano, y cualquier mes se puede ajustar a mano,
+  marcar "por confirmar (*)" o indicar que no hay pago.
 - **Deudas:** tarjetas (deuda, uso de la línea, fechas de cierre y pago) y préstamos (cuotas
   que faltan, fecha en que terminas).
 - **Compartidos:** cuánto te debe la otra persona o cuánto le debes, y botón para liquidar.

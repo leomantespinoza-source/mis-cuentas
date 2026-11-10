@@ -2,6 +2,7 @@
 import {
   monthKey, currentMonth, daysInMonth, dateInMonth, today, addMonths, round2, daysBetween,
 } from './format.js';
+import { incomeOccurrences, countsInBudget } from './schedule.js';
 
 // Parte que me corresponde de un movimiento (si es compartido, solo mi %).
 export function myShare(tx) {
@@ -72,8 +73,9 @@ export function monthSummary(state, mk = currentMonth(), todayStr = today()) {
   const curMk = monthKey(todayStr);
   const isCurrent = mk === curMk;
 
-  // Ingresos
-  const incomePlanned = state.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  // Ingresos programados de este mes (quincena, fin de mes, gratificación…)
+  const incomeItems = incomeOccurrences(state, mk);
+  const incomePlanned = incomeItems.filter((o) => countsInBudget(o.income)).reduce((s, o) => s + o.amount, 0);
   const incomeExtra = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const income = round2(incomePlanned + incomeExtra);
 
@@ -143,7 +145,7 @@ export function monthSummary(state, mk = currentMonth(), todayStr = today()) {
   const totalOut = round2(categories.reduce((s, c) => s + c.total, 0));
 
   return {
-    mk, isCurrent, income, incomePlanned: round2(incomePlanned), incomeExtra: round2(incomeExtra),
+    mk, isCurrent, income, incomePlanned: round2(incomePlanned), incomeExtra: round2(incomeExtra), incomeItems,
     fixedItems, fixedTotal, fixedPaid, loanItems, loansTotal, cardsTotal, savings,
     committed, variableBudget, variableSpent, variableLeft,
     dim, day, daysLeft, spentToday, dailyAllowance, todayLeft, expectedByNow, pace,
@@ -184,6 +186,37 @@ export function upcomingPayments(state, todayStr = today(), horizon = 10) {
     .map((it) => ({ ...it, days: daysBetween(todayStr, it.date), overdue: it.date < todayStr }))
     .filter((it) => it.overdue || it.days <= horizon)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Próximo ingreso desde hoy (mira este mes y los dos siguientes).
+export function nextIncome(state, todayStr = today()) {
+  const mk = monthKey(todayStr);
+  for (const m of [mk, addMonths(mk, 1), addMonths(mk, 2)]) {
+    const next = incomeOccurrences(state, m).find((o) => o.date >= todayStr);
+    if (next) return { ...next, days: daysBetween(todayStr, next.date) };
+  }
+  return null;
+}
+
+// Todo lo que pasa en un mes, por fecha: ingresos y pagos (para el calendario).
+export function monthEvents(state, mk) {
+  const events = [];
+  for (const o of incomeOccurrences(state, mk)) {
+    events.push({ kind: 'income', date: o.date, name: o.income.name, amount: o.amount, occ: o, id: o.income.id });
+  }
+  const s = monthSummary(state, mk);
+  for (const f of s.fixedItems) {
+    events.push({ kind: 'fixed', date: f.paidTx ? f.paidTx.date : f.dueDate, name: f.item.name, amount: f.paidTx ? f.paidTx.amount : f.item.amount, paid: !!f.paidTx, id: f.item.id });
+  }
+  for (const l of s.loanItems) {
+    if (l.done && !l.paidThisMonth) continue;
+    events.push({ kind: 'loan', date: l.paidThisMonth ? l.paidThisMonth.date : l.dueDate, name: l.item.name, amount: l.item.payment, paid: !!l.paidThisMonth, id: l.item.id });
+  }
+  for (const c of state.cards) {
+    if (cardBalance(state, c) <= 0) continue;
+    events.push({ kind: 'card', date: dateInMonth(mk, c.dueDay), name: `Tarjeta ${c.name}`, amount: null, id: c.id });
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'income' ? -1 : 1));
 }
 
 export function totalDebt(state) {

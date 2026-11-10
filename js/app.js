@@ -7,8 +7,10 @@ import movs from './views/movs.js';
 import plan from './views/plan.js';
 import debts from './views/debts.js';
 import settings from './views/settings.js';
+import calendar from './views/calendar.js';
 
 const routes = {
+  calendario: calendar,
   inicio: home,
   nuevo: add,
   movimientos: movs,
@@ -31,9 +33,10 @@ function render() {
   current = name;
   viewEl.innerHTML = '';
   routes[name](viewEl, params);
+  const tab = name === 'calendario' ? 'plan' : name;
   document.querySelectorAll('.tabbar a').forEach((a) => {
-    a.classList.toggle('active', a.dataset.tab === name);
-    if (a.dataset.tab === name) a.setAttribute('aria-current', 'page');
+    a.classList.toggle('active', a.dataset.tab === tab);
+    if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
 }
