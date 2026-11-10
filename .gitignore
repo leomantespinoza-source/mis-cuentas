@@ -1,0 +1,11 @@
+# Configuración local del editor / Claude
+.claude/
+
+# Respaldos de datos personales: nunca subirlos
+*respaldo*.json
+*movimientos*.csv
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
