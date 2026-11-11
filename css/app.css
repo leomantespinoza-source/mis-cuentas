@@ -293,6 +293,23 @@ a { color: inherit; }
 }
 .save-bar .btn { width: 100%; min-height: 56px; font-size: 17px; box-shadow: 0 6px 20px rgba(31, 92, 74, .3); }
 
+/* ---------- Dímelo (voz) ---------- */
+.voice-box {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 12px; margin-bottom: 12px;
+}
+.voice-row { display: flex; gap: 8px; align-items: center; }
+.voice-row .input { flex: 1; border-color: var(--brand); font-weight: 500; }
+.voice-mic { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); width: 48px; height: 48px; }
+.voice-mic.listening { animation: pulse 1s ease-in-out infinite; background: var(--danger); border-color: var(--danger); color: #fff; }
+@keyframes pulse { 50% { transform: scale(1.08); } }
+#voice-hint { margin: 8px 2px 0; }
+.voice-summary {
+  margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+  background: var(--brand-soft); font-size: 14px;
+}
+.voice-summary.incomplete { background: var(--warn-soft); }
+
 /* ---------- Selector de mes ---------- */
 .month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .month-nav strong { font-size: 17px; text-transform: capitalize; }

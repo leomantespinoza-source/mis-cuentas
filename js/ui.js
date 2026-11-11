@@ -78,6 +78,7 @@ export function methodLabel(method) {
   const s = getState();
   if (!method || method === 'cash') return 'Efectivo / débito';
   if (method === 'partner') return `Pagó ${s.settings.partnerName}`;
+  if (method === 'vale') return s.incomes.find((i) => i.cash === false)?.name || 'Tarjeta de alimentos';
   const card = findById('cards', method);
   return card ? `Tarjeta ${card.name}` : 'Tarjeta';
 }

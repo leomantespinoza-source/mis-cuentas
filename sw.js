@@ -1,6 +1,6 @@
 // Service worker: permite usar la app sin internet.
 // Sube VERSION cada vez que cambies archivos para que el celular descargue la versión nueva.
-const VERSION = 'v1.3.0';
+const VERSION = 'v1.4.0';
 const CACHE = `mis-cuentas-${VERSION}`;
 const ASSETS = [
   './',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/backup.js',
   './js/schedule.js',
   './js/cash.js',
+  './js/voice.js',
   './js/views/money.js',
   './js/views/incomes.js',
   './js/views/calendar.js',

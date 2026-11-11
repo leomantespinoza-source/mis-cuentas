@@ -282,7 +282,7 @@ function openItemForm(projectId, itemId) {
   });
 }
 
-export function openPayItem(projectId, itemId) {
+export function openPayItem(projectId, itemId, prefill = {}) {
   const s = getState();
   const p = findById('projects', projectId);
   const it = p?.items.find((x) => x.id === itemId);
@@ -313,7 +313,7 @@ export function openPayItem(projectId, itemId) {
       <form>
         <p class="muted small" style="margin-top:0">${esc(p.icon || '📌')} ${esc(p.name)} · pagar hasta el ${esc(wd(it.date))}</p>
         <label class="field"><span>Monto pagado</span>
-          <input class="input num" name="amount" inputmode="decimal" value="${it.amount}" required data-noautofocus="1"></label>
+          <input class="input num" name="amount" inputmode="decimal" value="${prefill.amount ?? it.amount}" required data-noautofocus="1"></label>
         ${shareFieldsHTML(st)}
         <label class="field" data-method-field><span>¿Con qué pagaste?</span>
           <select class="input" name="method">
@@ -321,7 +321,7 @@ export function openPayItem(projectId, itemId) {
             ${s.cards.map((c) => `<option value="${esc(c.id)}">💳 Tarjeta ${esc(c.name)}</option>`).join('')}
           </select></label>
         <label class="field"><span>Fecha</span>
-          <input class="input" type="date" name="date" value="${today()}" max="${today()}" required></label>
+          <input class="input" type="date" name="date" value="${prefill.date || today()}" max="${today()}" required></label>
         <div class="btn-row">
           <button type="button" class="btn" data-edit>Editar</button>
           <button class="btn primary">Marcar pagado</button>
