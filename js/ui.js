@@ -66,6 +66,10 @@ export const ICONS = {
 
 export function catInfo(id) {
   if (id === '__loans') return { icon: '🏦', name: 'Cuotas de préstamos' };
+  if (typeof id === 'string' && id.startsWith('proyecto:')) {
+    const p = findById('projects', id.slice(9));
+    return { icon: p?.icon || '📌', name: p?.name || 'Proyecto' };
+  }
   const c = getState().categories.find((x) => x.id === id);
   return c || { icon: '📦', name: 'Otros' };
 }
@@ -107,6 +111,13 @@ export function txView(tx) {
       icon = c.icon;
       title = f?.name || tx.note || 'Gasto fijo';
       sub = `Gasto fijo · ${methodLabel(tx.method)}`;
+      break;
+    }
+    case 'project': {
+      const p = findById('projects', tx.refId);
+      icon = p?.icon || '📌';
+      title = tx.note || 'Pago';
+      sub = `${p?.name || 'Proyecto'} · ${methodLabel(tx.method)}`;
       break;
     }
     case 'income':

@@ -11,8 +11,9 @@ import { ICONS, openSheet } from '../ui.js';
 import { openIncomeOverride, fmtPayDate, openIncomeForm } from './incomes.js';
 import { openPayFixed } from './plan.js';
 import { openPayCard, openPayLoan } from './debts.js';
+import { openPayItem } from './money.js';
 
-const KIND_ICON = { income: '💵', fixed: '📅', loan: '🏦', card: '💳' };
+const KIND_ICON = { income: '💵', fixed: '📅', loan: '🏦', card: '💳', project: '🧾' };
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
 
 export default function calendar(el, params) {
@@ -133,6 +134,7 @@ function bindEventRows(root, mk) {
     if (ev === 'fixed') openPayFixed(id);
     if (ev === 'loan') openPayLoan(id);
     if (ev === 'card') openPayCard(id);
+    if (ev === 'project') { const [p, i] = id.split('|'); openPayItem(p, i); }
   }));
 }
 

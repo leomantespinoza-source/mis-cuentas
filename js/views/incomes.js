@@ -58,6 +58,9 @@ export function openIncomeForm(id) {
         <label class="switch"><span><b>Cuenta para mi presupuesto</b><br>
           <span class="small muted" id="counts-hint"></span></span>
           <input type="checkbox" name="counts" ${f.counts ? 'checked' : ''}></label>
+        <label class="switch"><span><b>Llega a mi cuenta bancaria</b><br>
+          <span class="small muted">Apágalo si llega en otra tarjeta (ej. tarjeta de alimentos): así no se suma a tus saldos en "Mi dinero".</span></span>
+          <input type="checkbox" name="cash" ${i?.cash === false ? '' : 'checked'}></label>
         <div class="btn-row">
           ${i ? '<button type="button" class="btn danger" data-del>Eliminar</button>' : ''}
           <button class="btn primary">Guardar</button>
@@ -120,6 +123,7 @@ export function openIncomeForm(id) {
           rule: v.rule,
           months: f.months,
           counts: form.counts.checked,
+          cash: form.cash.checked,
           overrides: i?.overrides || {},
         });
         close();

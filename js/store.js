@@ -36,12 +36,15 @@ function emptyState() {
       setupDismissed: false,
       lastBackupAt: 0,
       backupSnoozeUntil: 0,
+      balancesUpdatedAt: 0,  // cuándo se actualizaron los saldos por última vez
     },
     categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
     incomes: [],   // {id, name, amount, day}
     fixed: [],     // {id, name, amount, day, categoryId, shared, myPct}
     cards: [],     // {id, name, closingDay, dueDay, limit, startBalance, planMonthly}
     loans: [],     // {id, name, payment, dueDay, installments, startDate}
+    accounts: [],  // {id, name, balance, cash}  saldos de tus cuentas
+    projects: [],  // {id, name, icon, date, items: [{id, name, amount, date}]}
     txs: [],       // ver addTx()
   };
 }
@@ -123,6 +126,15 @@ export function findById(collection, id) {
   return state[collection].find((x) => x.id === id);
 }
 
+// ---------- Saldos ----------
+
+// Reemplaza la lista de cuentas y marca el momento: desde aquí se cuentan los movimientos nuevos.
+export function saveAccounts(list) {
+  state.accounts = list.map((a) => ({ ...a, id: a.id || uid() }));
+  state.settings.balancesUpdatedAt = Date.now();
+  commit();
+}
+
 // ---------- Movimientos ----------
 // tx = {
 //   id, date, createdAt,
@@ -150,6 +162,7 @@ export function addTx(tx) {
     myPct: tx.shared ? Number(tx.myPct ?? 50) : 100,
     paidBy: tx.shared ? (tx.paidBy || 'me') : 'me',
     refId: tx.refId || null,
+    itemId: tx.itemId || null,
     direction: tx.direction || null,
   };
   // Si lo pagó la otra persona, no sale de mi efectivo ni de mi tarjeta.
@@ -159,7 +172,7 @@ export function addTx(tx) {
   if (i >= 0) state.txs[i] = clean;
   else state.txs.push(clean);
 
-  if (['expense', 'fixed'].includes(clean.type) && clean.paidBy === 'me') {
+  if (clean.type === 'expense' && clean.paidBy === 'me') {
     state.settings.lastMethod = clean.method;
   }
   commit();

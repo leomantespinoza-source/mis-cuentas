@@ -8,9 +8,11 @@ import plan from './views/plan.js';
 import debts from './views/debts.js';
 import settings from './views/settings.js';
 import calendar from './views/calendar.js';
+import moneyView from './views/money.js';
 
 const routes = {
   calendario: calendar,
+  dinero: moneyView,
   inicio: home,
   nuevo: add,
   movimientos: movs,
@@ -33,7 +35,7 @@ function render() {
   current = name;
   viewEl.innerHTML = '';
   routes[name](viewEl, params);
-  const tab = name === 'calendario' ? 'plan' : name;
+  const tab = { calendario: 'plan', dinero: 'inicio', ajustes: 'inicio' }[name] || name;
   document.querySelectorAll('.tabbar a').forEach((a) => {
     a.classList.toggle('active', a.dataset.tab === tab);
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');

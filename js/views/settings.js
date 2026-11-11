@@ -145,7 +145,7 @@ export default function settings(el) {
 }
 
 const TYPE_LABEL = {
-  expense: 'Gasto', fixed: 'Gasto fijo', income: 'Ingreso', cardpay: 'Pago tarjeta', loanpay: 'Cuota préstamo', settle: 'Liquidación',
+  expense: 'Gasto', fixed: 'Gasto fijo', project: 'Proyecto', income: 'Ingreso', cardpay: 'Pago tarjeta', loanpay: 'Cuota préstamo', settle: 'Liquidación',
 };
 
 function toCSV(s) {

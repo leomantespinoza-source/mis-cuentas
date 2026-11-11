@@ -70,7 +70,10 @@ export default function plan(el, params) {
         <button class="btn sm" data-add-income>+ Ingreso</button>
         <a class="btn sm" href="#/nuevo?type=income">+ Ingreso extra</a>
       </div>
-      <a class="btn sm block" href="#/calendario" style="margin-top:10px">📅 Ver calendario de pagos</a>
+      <div class="btn-row" style="margin-top:10px">
+        <a class="btn sm" href="#/calendario">📅 Calendario</a>
+        <a class="btn sm" href="#/dinero">💰 Mi dinero</a>
+      </div>
     </section>
 
     <div class="section-label">Gastos fijos</div>

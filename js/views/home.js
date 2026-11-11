@@ -13,6 +13,9 @@ import {
 import { openPayFixed } from './plan.js';
 import { openPayCard, openPayLoan } from './debts.js';
 import { openTxDetail } from './movs.js';
+import { openPayItem } from './money.js';
+import { hasAccounts, cashProjection } from '../cash.js';
+import { pendingProjectItems } from '../calc.js';
 import {
   backupDue, daysSinceBackup, shareBackup, snoozeBackup, canShareBackup,
 } from '../backup.js';
@@ -20,6 +23,7 @@ import {
 export default function home(el) {
   const s = getState();
   const m = monthSummary(s);
+  const cash = hasAccounts(s) ? cashProjection(s) : null;
   const hasIncome = s.incomes.length > 0 || m.incomeExtra > 0;
   const name = s.settings.name ? `, ${esc(s.settings.name)}` : '';
 
@@ -33,9 +37,10 @@ export default function home(el) {
     </header>
 
     ${setupCard(s)}
-    ${hasIncome ? hero(m) : heroEmpty()}
+    ${hasIncome ? hero(m, cash) : heroEmpty()}
+    ${moneyCard(s, cash)}
     ${backupNotice()}
-    ${paceNotice(m)}
+    ${cash && cash.safeDaily < m.todayLeft ? '' : paceNotice(m)}
     ${nextIncomeCard(s)}
     ${upcomingCard(s)}
 
@@ -58,6 +63,11 @@ export default function home(el) {
     if (pay === 'fixed') openPayFixed(id);
     if (pay === 'loan') openPayLoan(id);
     if (pay === 'card') openPayCard(id);
+    if (pay === 'project') {
+      const [p, i] = id.split('|');
+      if (i === '*') location.hash = '#/dinero';
+      else openPayItem(p, i);
+    }
   }));
   el.querySelectorAll('[data-tx]').forEach((row) => row.addEventListener('click', () => openTxDetail(row.dataset.tx)));
   el.querySelector('[data-settle]')?.addEventListener('click', openSettle);
@@ -74,8 +84,8 @@ export default function home(el) {
 function setupCard(s) {
   const steps = [
     { done: s.incomes.length > 0, label: 'Tus ingresos del mes', href: '#/plan' },
-    { done: s.fixed.length > 0, label: 'Tus gastos fijos', href: '#/plan' },
     { done: s.cards.length > 0 || s.loans.length > 0, label: 'Tus tarjetas y préstamos', href: '#/deudas' },
+    { done: s.accounts.length > 0, label: 'Cuánto tienes hoy en tus cuentas', href: '#/dinero' },
     { done: Number(s.settings.savingsMonthly) > 0, label: 'Cuánto quieres ahorrar', href: '#/plan?s=ahorro' },
   ];
   const doneCount = steps.filter((x) => x.done).length;
@@ -104,13 +114,24 @@ function heroEmpty() {
     </section>`;
 }
 
-function hero(m) {
+function hero(m, cash) {
   let cls = '';
   let label = 'Hoy puedes gastar';
   let amount = money(Math.max(0, m.todayLeft));
   let note;
+  // Si tus saldos y pagos que vienen permiten menos que el plan del mes, manda la caja.
+  const cashLimits = cash && cash.safeDaily < m.todayLeft;
 
-  if (m.variableBudget <= 0) {
+  if (cash && cash.firstNegative) {
+    cls = 'is-danger';
+    label = 'No te alcanza';
+    amount = money(cash.low.balance);
+    note = `Con tus saldos y los pagos que vienen, el ${esc(weekdayShort(cash.firstNegative))} ${esc(shortDate(cash.firstNegative))} quedarías en rojo. Mira <b>Mi dinero</b>.`;
+  } else if (cashLimits && m.variableBudget > 0) {
+    cls = cash.safeDaily < m.dailyAllowance * 0.5 ? 'is-warn' : '';
+    amount = money(cash.safeDaily);
+    note = `Ajustado a tu saldo y a los pagos que vienen. Gastando hasta esto por día llegas al ${esc(weekdayShort(cash.bindingDate))} ${esc(shortDate(cash.bindingDate))} sin quedarte en rojo.`;
+  } else if (m.variableBudget <= 0) {
     cls = 'is-danger';
     label = 'Tu plan no alcanza';
     amount = money(m.variableBudget);
@@ -146,6 +167,30 @@ function hero(m) {
         </div>
         <div class="hero-meta num"><span>Gastado ${money(m.variableSpent)}</span><span>de ${money(m.variableBudget)}</span></div>` : ''}
     </section>`;
+}
+
+function moneyCard(s, cash) {
+  const pending = pendingProjectItems(s);
+  if (!cash) {
+    if (!pending.length && !s.loans.length) return '';
+    return `
+      <a class="card next-income" href="#/dinero">
+        <div class="row-icon">💰</div>
+        <div class="row-main"><div class="row-title">¿Te alcanza para lo que viene?</div>
+          <div class="small muted">Anota cuánto tienes hoy en tus cuentas y la app te lo dice.</div></div>
+        <span class="link-btn">Anotar</span>
+      </a>`;
+  }
+  const next = pending[0];
+  return `
+    <a class="card next-income" href="#/dinero">
+      <div class="row-icon">💰</div>
+      <div class="row-main">
+        <div class="small muted">Tienes hoy</div>
+        <div class="row-title">${money(cash.start)}${next ? ` · ${esc(next.project.icon || '📌')} ${money(pending.filter((x) => x.project.id === next.project.id).reduce((a, x) => a + Number(x.item.amount), 0))} por pagar` : ''}</div>
+      </div>
+      <span class="small muted" style="text-align:right">Más bajo<br><b class="${cash.low.balance < 0 ? 'danger-text' : ''}">${money(cash.low.balance)}</b></span>
+    </a>`;
 }
 
 function backupNotice() {
@@ -202,7 +247,7 @@ function nextIncomeCard(s) {
 function upcomingCard(s) {
   const items = upcomingPayments(s).slice(0, 6);
   if (!items.length) return '';
-  const icon = { fixed: '📅', loan: '🏦', card: '💳' };
+  const icon = { fixed: '📅', loan: '🏦', card: '💳', project: '🧾' };
   return `
     <section class="card">
       <h2 class="card-title">Próximos pagos</h2>

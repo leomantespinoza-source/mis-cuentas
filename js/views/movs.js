@@ -48,7 +48,7 @@ export default function movs(el, params) {
     ? `<section class="card">${categoryBars(m.categories, m.totalOut)}</section>`
     : (byDay.size
       ? [...byDay.entries()].map(([date, list]) => {
-        const dayTotal = list.filter((t) => t.type === 'expense' || t.type === 'fixed').reduce((a, t) => a + myShare(t), 0);
+        const dayTotal = list.filter((t) => ['expense', 'fixed', 'project'].includes(t.type)).reduce((a, t) => a + myShare(t), 0);
         return `
           <div class="day-group">
             <div class="day-head"><span>${esc(dayLabel(date))}</span><span class="num">${dayTotal ? '−' + money(dayTotal) : ''}</span></div>

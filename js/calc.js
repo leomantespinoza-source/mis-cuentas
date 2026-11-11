@@ -18,7 +18,7 @@ export function txsOfMonth(state, mk) {
 export function cardBalance(state, card) {
   let bal = Number(card.startBalance) || 0;
   for (const t of state.txs) {
-    if (t.method === card.id && (t.type === 'expense' || t.type === 'fixed')) bal += t.amount;
+    if (t.method === card.id && ['expense', 'fixed', 'project'].includes(t.type)) bal += t.amount;
     if (t.type === 'cardpay' && t.refId === card.id) bal -= t.amount;
   }
   return round2(bal);
@@ -26,7 +26,7 @@ export function cardBalance(state, card) {
 
 export function cardSpentThisCycle(state, card, mk = currentMonth()) {
   return round2(state.txs
-    .filter((t) => t.method === card.id && monthKey(t.date) === mk && (t.type === 'expense' || t.type === 'fixed'))
+    .filter((t) => t.method === card.id && monthKey(t.date) === mk && ['expense', 'fixed', 'project'].includes(t.type))
     .reduce((s, t) => s + t.amount, 0));
 }
 
@@ -51,13 +51,38 @@ export function loanStatus(state, loan, mk = currentMonth()) {
   return { paidCount, remaining, paidThisMonth, remainingAmount, endMonth, done: remaining === 0 };
 }
 
+// ---------- Proyectos (pagos grandes programados) ----------
+
+export function projectItemPaid(state, projectId, itemId) {
+  return state.txs.find((t) => t.type === 'project' && t.refId === projectId && t.itemId === itemId) || null;
+}
+
+export function pendingProjectItems(state) {
+  const out = [];
+  for (const p of state.projects) {
+    for (const it of p.items || []) {
+      if (!projectItemPaid(state, p.id, it.id)) out.push({ project: p, item: it });
+    }
+  }
+  return out.sort((a, b) => a.item.date.localeCompare(b.item.date));
+}
+
+export function projectTotals(state, p) {
+  const total = (p.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0);
+  const paid = (p.items || []).reduce((s, it) => {
+    const tx = projectItemPaid(state, p.id, it.id);
+    return s + (tx ? tx.amount : 0);
+  }, 0);
+  return { total: round2(total), paid: round2(paid), pending: round2(total - paid) };
+}
+
 // ---------- Compartidos ----------
 
 // Positivo: la otra persona te debe. Negativo: tú le debes.
 export function sharedBalance(state) {
   let bal = 0;
   for (const t of state.txs) {
-    if ((t.type === 'expense' || t.type === 'fixed') && t.shared) {
+    if ((t.type === 'expense' || t.type === 'fixed' || t.type === 'project') && t.shared) {
       if (t.paidBy === 'me') bal += (t.amount * (100 - t.myPct)) / 100;
       else bal -= (t.amount * t.myPct) / 100;
     }
@@ -133,8 +158,8 @@ export function monthSummary(state, mk = currentMonth(), todayStr = today()) {
   // ¿En qué se va el dinero? (gastos reales del mes, mi parte)
   const byCat = new Map();
   for (const t of txs) {
-    if (t.type === 'expense' || t.type === 'fixed') {
-      const k = t.categoryId || 'otros';
+    if (t.type === 'expense' || t.type === 'fixed' || t.type === 'project') {
+      const k = t.type === 'project' ? `proyecto:${t.refId}` : (t.categoryId || 'otros');
       byCat.set(k, (byCat.get(k) || 0) + myShare(t));
     }
     if (t.type === 'loanpay') byCat.set('__loans', (byCat.get('__loans') || 0) + t.amount);
@@ -181,6 +206,23 @@ export function upcomingPayments(state, todayStr = today(), horizon = 10) {
     if (due < todayStr || paidRecently) due = dateInMonth(nextMk, c.dueDay);
     items.push({ kind: 'card', id: c.id, name: `Tarjeta ${c.name}`, amount: bal, date: due });
   }
+  // Pagos de proyectos: si varios vencen el mismo día, se agrupan en una sola fila.
+  const groups = new Map();
+  for (const { project, item } of pendingProjectItems(state)) {
+    const k = `${project.id}|${item.date}`;
+    if (!groups.has(k)) groups.set(k, { project, date: item.date, list: [] });
+    groups.get(k).list.push(item);
+  }
+  for (const g of groups.values()) {
+    const one = g.list.length === 1;
+    items.push({
+      kind: 'project',
+      id: `${g.project.id}|${one ? g.list[0].id : '*'}`,
+      name: `${g.project.icon || '📌'} ${one ? g.list[0].name : `${g.project.name} (${g.list.length} pagos)`}`,
+      amount: round2(g.list.reduce((s, it) => s + Number(it.amount), 0)),
+      date: g.date,
+    });
+  }
 
   return items
     .map((it) => ({ ...it, days: daysBetween(todayStr, it.date), overdue: it.date < todayStr }))
@@ -215,6 +257,14 @@ export function monthEvents(state, mk) {
   for (const c of state.cards) {
     if (cardBalance(state, c) <= 0) continue;
     events.push({ kind: 'card', date: dateInMonth(mk, c.dueDay), name: `Tarjeta ${c.name}`, amount: null, id: c.id });
+  }
+  for (const p of state.projects) {
+    for (const it of p.items || []) {
+      const tx = projectItemPaid(state, p.id, it.id);
+      const date = tx ? tx.date : it.date;
+      if (monthKey(date) !== mk) continue;
+      events.push({ kind: 'project', date, name: `${p.icon || '📌'} ${it.name}`, amount: tx ? tx.amount : it.amount, paid: !!tx, id: `${p.id}|${it.id}` });
+    }
   }
   return events.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'income' ? -1 : 1));
 }
